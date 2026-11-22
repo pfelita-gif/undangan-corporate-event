@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel - Corporate Event</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans">
+
+  <!-- HALAMAN LOGIN ADMIN -->
+  <div id="loginSection" class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 w-full max-w-md">
+      <h1 class="text-2xl font-bold text-slate-900 mb-1">Login Admin Event</h1>
+      <p class="text-sm text-slate-500 mb-6">Masuk untuk mengelola daftar hadir dan persetujuan foto.</p>
+
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">Email Admin</label>
+          <input type="email" id="adminEmail" required class="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Password</label>
+          <input type="password" id="adminPassword" required class="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm" />
+        </div>
+        <button type="submit" class="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800">
+          Masuk
+        </button>
+        <p id="loginError" class="text-sm text-red-600 hidden"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- DASHBOARD ADMIN -->
+  <div id="dashboardSection" class="hidden max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+    <div class="flex items-center justify-between bg-white p-6 rounded-2xl border border-slate-200">
+      <div>
+        <h1 class="text-xl font-bold text-slate-900">Dashboard Admin Acara</h1>
+        <p class="text-xs text-slate-500">Kelola RSVP tamu dan moderasi foto</p>
+      </div>
+      <button id="logoutBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold px-4 py-2 rounded-lg">
+        Keluar
+      </button>
+    </div>
+
+    <!-- RINGKASAN KEHADIRAN -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="bg-white p-5 rounded-xl border border-slate-200">
+        <p class="text-xs text-slate-500">Total Konfirmasi Masuk</p>
+        <p id="statTotalForm" class="text-2xl font-bold text-slate-900 mt-1">0</p>
+      </div>
+      <div class="bg-white p-5 rounded-xl border border-slate-200">
+        <p class="text-xs text-slate-500">Total Orang Hadir</p>
+        <p id="statTotalHadir" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
+      </div>
+      <div class="bg-white p-5 rounded-xl border border-slate-200">
+        <p class="text-xs text-slate-500">Konfirmasi Tidak Hadir</p>
+        <p id="statTidakHadir" class="text-2xl font-bold text-red-500 mt-1">0</p>
+      </div>
+    </div>
+
+    <!-- MODERASI FOTO -->
+    <section class="bg-white p-6 rounded-2xl border border-slate-200">
+      <h2 class="text-lg font-bold mb-4">Moderasi Foto Tamu</h2>
+      <div id="adminPhotoGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"></div>
+    </section>
+
+    <!-- DAFTAR KONFIRMASI KEHADIRAN -->
+    <section class="bg-white p-6 rounded-2xl border border-slate-200 overflow-x-auto">
+      <h2 class="text-lg font-bold mb-4">Daftar Konfirmasi Kehadiran</h2>
+      <table class="w-full text-left text-sm">
+        <thead class="border-b border-slate-200 text-slate-500">
+          <tr>
+            <th class="py-3 px-2">Nama / Instansi</th>
+            <th class="py-3 px-2">Status</th>
+            <th class="py-3 px-2">Jumlah Orang</th>
+            <th class="py-3 px-2">Waktu Isi</th>
+          </tr>
+        </thead>
+        <tbody id="rsvpTableBody" class="divide-y divide-slate-100"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    const loginSection = document.getElementById('loginSection');
+    const dashboardSection = document.getElementById('dashboardSection');
+
+    // Cek sesi login saat halaman dibuka
+    async function checkSession() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session) {
+        loginSection.classList.add('hidden');
+        dashboardSection.classList.remove('hidden');
+        loadDashboardData();
+      } else {
+        loginSection.classList.remove('hidden');
+        dashboardSection.classList.add('hidden');
+      }
+    }
+
+    // Proses Login
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('adminEmail').value;
+      const password = document.getElementById('adminPassword').value;
+      const errBox = document.getElementById('loginError');
+
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        errBox.textContent = 'Login gagal: Email atau password salah.';
+        errBox.classList.remove('hidden');
+      } else {
+        errBox.classList.add('hidden');
+        checkSession();
+      }
+    });
+
+    // Proses Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await supabaseClient.auth.signOut();
+      checkSession();
+    });
+
+    // Memuat Data RSVP & Foto
+    async function loadDashboardData() {
+      // 1. Ambil Data RSVP
+      const { data: rsvpData } = await supabaseClient
+        .from('rsvp')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (rsvpData) {
+        let totalHadir = 0;
+        let tidakHadir = 0;
+        const tbody = document.getElementById('rsvpTableBody');
+
+        tbody.innerHTML = rsvpData.map(row => {
+          if (row.status === 'Hadir') totalHadir += row.jumlah_tamu;
+          else tidakHadir += 1;
+
+          const tanggal = new Date(row.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+          const badge = row.status === 'Hadir'
+            ? '<span class="bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full text-xs font-medium">Hadir</span>'
+            : '<span class="bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full text-xs font-medium">Tidak Hadir</span>';
+
+          return `
+            <tr>
+              <td class="py-3 px-2 font-medium">${row.nama}</td>
+              <td class="py-3 px-2">${badge}</td>
+              <td class="py-3 px-2">${row.jumlah_tamu} orang</td>
+              <td class="py-3 px-2 text-slate-500 text-xs">${tanggal}</td>
+            </tr>
+          `;
+        }).join('');
+
+        document.getElementById('statTotalForm').textContent = rsvpData.length;
+        document.getElementById('statTotalHadir').textContent = totalHadir + ' Orang';
+        document.getElementById('statTidakHadir').textContent = tidakHadir;
+      }
+
+      // 2. Ambil Semua Foto (Pending & Approved)
+      loadAllPhotos();
+    }
+
+    function downloadPhotoAdmin(url, filename) {
+      const link = document.createElement('a');
+      link.href = `${url}?download=${filename}`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    async function loadAllPhotos() {
+      const grid = document.getElementById('adminPhotoGrid');
+      const { data: photos } = await supabaseClient
+        .from('photos')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!photos || photos.length === 0) {
+        grid.innerHTML = '<p class="text-sm text-slate-400 col-span-full">Belum ada foto masuk.</p>';
+        return;
+      }
+
+      grid.innerHTML = photos.map((photo, idx) => `
+        <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex flex-col">
+          <img src="${photo.image_url}" class="w-full h-44 object-cover" />
+          <div class="p-3 flex-1 flex flex-col justify-between space-y-3">
+            <div>
+              <span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded ${photo.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+                ${photo.status === 'approved' ? 'Tayang' : 'Menunggu Persetujuan'}
+              </span>
+              <p class="text-xs text-slate-600 mt-1 truncate">Oleh: ${photo.uploader_name}</p>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              ${photo.status === 'pending' ? `
+                <button onclick="approvePhoto('${photo.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1.5 px-2 rounded font-medium">
+                  Setujui
+                </button>
+              ` : ''}
+              <button onclick="downloadPhotoAdmin('${photo.image_url}', 'event-foto-${idx + 1}.jpg')" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white text-xs py-1.5 px-2 rounded font-medium">
+                Download
+              </button>
+              <button onclick="deletePhoto('${photo.id}', '${photo.image_url}')" class="bg-red-600 hover:bg-red-700 text-white text-xs py-1.5 px-2.5 rounded font-medium">
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function approvePhoto(id) {
+      await supabaseClient.from('photos').update({ status: 'approved' }).eq('id', id);
+      loadAllPhotos();
+    }
+
+    async function deletePhoto(id, imageUrl) {
+      if (!confirm('Yakin ingin menghapus foto ini secara permanen?')) return;
+      const fileName = imageUrl.split('/').pop();
+      await supabaseClient.storage.from('event-photos').remove([fileName]);
+      await supabaseClient.from('photos').delete().eq('id', id);
+      loadAllPhotos();
+    }
+
+    checkSession();
+  </script>
+</body>
+</html>

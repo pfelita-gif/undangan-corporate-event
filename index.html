@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Undangan Corporate Event</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased">
+
+  <!-- HEADER / HERO SECTION (SILAKAN UBAH DETAIL ACARA DI SINI) -->
+  <header class="bg-slate-900 text-white py-16 px-6 text-center">
+    <div class="max-w-3xl mx-auto">
+      <p class="uppercase tracking-widest text-amber-400 text-xs font-semibold mb-3">Exclusive Corporate Gathering</p>
+      <h1 class="text-3xl md:text-5xl font-bold mb-4">Annual Company Gala 2026</h1>
+      <p class="text-slate-300 text-base md:text-lg mb-8">
+        Merayakan pencapaian bersama dan melangkah menuju inovasi masa depan.
+      </p>
+      <div class="inline-flex flex-col sm:flex-row gap-4 bg-slate-800/80 border border-slate-700 rounded-xl px-6 py-4 text-sm text-left">
+        <div>
+          <span class="block text-slate-400 text-xs">Tanggal & Waktu</span>
+          <span class="font-semibold text-white">Sabtu, 12 Desember 2026 • 18.00 WIB</span>
+        </div>
+        <div class="hidden sm:block border-l border-slate-700"></div>
+        <div>
+          <span class="block text-slate-400 text-xs">Lokasi Acara</span>
+          <span class="font-semibold text-white">Grand Ballroom Hotel Majapahit, Surabaya</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-12 space-y-12">
+
+    <!-- BAGIAN 1: FORM KONFIRMASI KEHADIRAN (RSVP) -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+      <h2 class="text-2xl font-bold text-slate-900 mb-2">Konfirmasi Kehadiran</h2>
+      <p class="text-slate-500 text-sm mb-6">Mohon isi data di bawah ini untuk pendataan kursi dan konsumsi acara.</p>
+
+      <form id="rsvpForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap / Instansi</label>
+          <input type="text" id="rsvpNama" required placeholder="Contoh: Budi Santoso - PT Maju Jaya"
+            class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-slate-900 focus:outline-none" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Status Kehadiran</label>
+            <select id="rsvpStatus" required
+              class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-slate-900 focus:outline-none">
+              <option value="Hadir">Hadir</option>
+              <option value="Tidak Hadir">Tidak Hadir</option>
+            </select>
+          </div>
+
+          <div id="jumlahWrapper">
+            <label class="block text-sm font-medium text-slate-700 mb-1">Jumlah Orang yang Hadir</label>
+            <input type="number" id="rsvpJumlah" min="1" max="10" value="1" required
+              class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-slate-900 focus:outline-none" />
+          </div>
+        </div>
+
+        <button type="submit" id="rsvpBtn"
+          class="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition">
+          Kirim Konfirmasi
+        </button>
+        <p id="rsvpMsg" class="text-sm font-medium hidden"></p>
+      </form>
+    </section>
+
+    <!-- BAGIAN 2: UPLOAD & GALERI FOTO EVENT -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Galeri Foto Acara</h2>
+          <p class="text-slate-500 text-sm">Bagikan momen terbaik Anda selama acara berlangsung.</p>
+        </div>
+      </div>
+
+      <!-- Form Upload Foto -->
+      <form id="uploadForm" class="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-5 mb-8 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Nama Anda (Opsional)</label>
+            <input type="text" id="uploaderName" placeholder="Nama pengunggah"
+              class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm focus:border-slate-900 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Pilih Foto (Maks. 5MB)</label>
+            <input type="file" id="photoFile" accept="image/*" required
+              class="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-900 file:text-white hover:file:bg-slate-800
