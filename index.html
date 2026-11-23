@@ -9,7 +9,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans antialiased">
 
-  <!-- HEADER / HERO SECTION (SILAKAN UBAH DETAIL ACARA DI SINI) -->
+  <!-- HEADER / HERO SECTION -->
   <header class="bg-slate-900 text-white py-16 px-6 text-center">
     <div class="max-w-3xl mx-auto">
       <p class="uppercase tracking-widest text-amber-400 text-xs font-semibold mb-3">Exclusive Corporate Gathering</p>
@@ -66,7 +66,7 @@
           class="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition">
           Kirim Konfirmasi
         </button>
-        <p id="rsvpMsg" class="text-sm font-medium hidden"></p>
+        <p id="rsvpMsg" class="text-sm font-medium hidden mt-2"></p>
       </form>
     </section>
 
@@ -90,4 +90,174 @@
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">Pilih Foto (Maks. 5MB)</label>
             <input type="file" id="photoFile" accept="image/*" required
-              class="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-900 file:text-white hover:file:bg-slate-800
+              class="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-900 file:text-white hover:file:bg-slate-800" />
+          </div>
+        </div>
+
+        <button type="submit" id="uploadBtn"
+          class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold px-5 py-2.5 rounded-lg text-sm transition">
+          Unggah Foto ke Galeri
+        </button>
+        <p id="uploadMsg" class="text-sm font-medium hidden mt-2"></p>
+      </form>
+
+      <!-- Grid Galeri Foto -->
+      <div id="galleryGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <p class="text-slate-400 text-sm col-span-full text-center py-8">Memuat galeri foto...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="text-center text-slate-400 text-xs py-8">
+    &copy; 2026 Corporate Event Committee.
+  </footer>
+
+  <script src="config.js"></script>
+  <script>
+    const rsvpStatus = document.getElementById('rsvpStatus');
+    const jumlahWrapper = document.getElementById('jumlahWrapper');
+    const rsvpJumlah = document.getElementById('rsvpJumlah');
+
+    rsvpStatus.addEventListener('change', () => {
+      if (rsvpStatus.value === 'Tidak Hadir') {
+        jumlahWrapper.classList.add('opacity-40', 'pointer-events-none');
+        rsvpJumlah.min = 0;
+        rsvpJumlah.value = 0;
+      } else {
+        jumlahWrapper.classList.remove('opacity-40', 'pointer-events-none');
+        rsvpJumlah.min = 1;
+        rsvpJumlah.value = 1;
+      }
+    });
+
+    // Proses Kirim RSVP
+    document.getElementById('rsvpForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('rsvpBtn');
+      const msg = document.getElementById('rsvpMsg');
+      btn.disabled = true;
+      btn.textContent = 'Mengirim...';
+      msg.classList.add('hidden');
+
+      try {
+        if (typeof supabaseClient === 'undefined') {
+          throw new Error('File config.js belum terbaca di server.');
+        }
+
+        const nama = document.getElementById('rsvpNama').value.trim();
+        const status = rsvpStatus.value;
+        const jumlah_tamu = status === 'Hadir' ? parseInt(rsvpJumlah.value) : 0;
+
+        const { error } = await supabaseClient.from('rsvp').insert([{ nama, status, jumlah_tamu }]);
+        if (error) throw error;
+
+        msg.textContent = 'Terima kasih! Konfirmasi kehadiran Anda telah tercatat.';
+        msg.className = 'text-sm font-medium text-emerald-600 mt-2';
+        document.getElementById('rsvpForm').reset();
+        rsvpJumlah.min = 1;
+        jumlahWrapper.classList.remove('opacity-40', 'pointer-events-none');
+      } catch (err) {
+        msg.textContent = 'Gagal mengirim data: ' + (err.message || err);
+        msg.className = 'text-sm font-medium text-red-600 mt-2';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Kirim Konfirmasi';
+      }
+    });
+
+    // Proses Upload Foto
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById('photoFile');
+      const file = fileInput.files[0];
+      const msg = document.getElementById('uploadMsg');
+      const btn = document.getElementById('uploadBtn');
+
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Ukuran foto maksimal 5MB.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Mengunggah...';
+      msg.classList.add('hidden');
+
+      try {
+        if (typeof supabaseClient === 'undefined') {
+          throw new Error('File config.js belum terbaca di server.');
+        }
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+
+        const { error: uploadError } = await supabaseClient.storage
+          .from('event-photos')
+          .upload(fileName, file);
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabaseClient.storage
+          .from('event-photos')
+          .getPublicUrl(fileName);
+
+        const uploader_name = document.getElementById('uploaderName').value.trim() || 'Tamu Undangan';
+        const { error: dbError } = await supabaseClient.from('photos').insert([
+          { uploader_name, image_url: urlData.publicUrl, status: 'pending' }
+        ]);
+        if (dbError) throw dbError;
+
+        msg.textContent = 'Foto berhasil diunggah! Foto akan tampil di galeri setelah disetujui oleh admin.';
+        msg.className = 'text-sm font-medium text-emerald-600 mt-2';
+        document.getElementById('uploadForm').reset();
+      } catch (err) {
+        msg.textContent = 'Gagal mengunggah foto: ' + (err.message || err);
+        msg.className = 'text-sm font-medium text-red-600 mt-2';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Unggah Foto ke Galeri';
+      }
+    });
+
+    // Fungsi Unduh Foto
+    function downloadPhoto(url, filename) {
+      const link = document.createElement('a');
+      link.href = `${url}?download=${filename || 'event-photo.jpg'}`;
+      link.download = filename || 'event-photo.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Memuat Foto yang Sudah Disetujui Admin
+    async function loadApprovedPhotos() {
+      const gallery = document.getElementById('galleryGrid');
+      const { data, error } = await supabaseClient
+        .from('photos')
+        .select('*')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+
+      if (error || !data || data.length === 0) {
+        gallery.innerHTML = '<p class="text-slate-400 text-sm col-span-full text-center py-8">Belum ada foto yang ditampilkan.</p>';
+        return;
+      }
+
+      gallery.innerHTML = data.map((item, idx) => `
+        <div class="group relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+          <img src="${item.image_url}" alt="Foto Event" class="w-full h-56 object-cover" loading="lazy" />
+          <div class="p-3 bg-white flex items-center justify-between gap-2">
+            <span class="text-xs text-slate-600 truncate">Oleh: ${item.uploader_name}</span>
+            <button onclick="downloadPhoto('${item.image_url}', 'event-foto-${idx + 1}.jpg')"
+              class="text-xs bg-slate-900 hover:bg-slate-700 text-white px-3 py-1.5 rounded-md font-medium shrink-0">
+              Download
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    loadApprovedPhotos();
+  </script>
+</body>
+</html>
